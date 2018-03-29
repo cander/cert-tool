@@ -12,7 +12,11 @@ describe 'CertBundle' do
       expect(certs.size).to eq(1)
     end
 
-    it 'raise and exception about an incomplete cert' do
+    it 'raise an exception about an incomplete cert' do
       expect{ parse_file("data/certs/incomplete-cert.pem") }.to raise_error(ArgumentError)
+    end
+
+    it 'raise an exception for a corrupted cert' do
+      expect{ parse_file("data/certs/corrupted-cert.pem") }.to raise_error(ArgumentError)
     end
 end

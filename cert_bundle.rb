@@ -11,14 +11,13 @@ class CertBundle
       in_file.each do |line|
         cert_strs += line
         if (line =~ /^\-+END(\s\w+)?\sCERTIFICATE\-+$/)
-            puts "Found a cert"
-            parsed_cert = `echo '#{cert_strs}' | openssl x509 -noout -text`
+            # throwing away error messages from openssl
+            parsed_cert = `echo '#{cert_strs}' | openssl x509 -noout -text 2> /dev/null`
             if $?.success?
-              puts "parsed the cert"
               result << Certificate.new(parsed_cert)
               cert_strs = ""
             else
-              puts "failed to parse"
+              raise ArgumentError.new("Failed to parse delimited certificate")
             end
         end
       end
