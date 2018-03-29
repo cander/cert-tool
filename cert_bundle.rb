@@ -6,7 +6,12 @@ class CertBundle
         cert_strs += line
         if (line =~ /^\-+END(\s\w+)?\sCERTIFICATE\-+$/)
             puts "Found a cert"
-            puts `echo '#{cert_strs}' | openssl x509 -noout -text`
+            parsed_cert = `echo '#{cert_strs}' | openssl x509 -noout -text`
+            if $?.success?
+              puts "parsed the cert"
+            else
+              puts "failed to parse"
+            end
         end
       end
 
