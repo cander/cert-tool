@@ -12,6 +12,12 @@ describe 'CertBundle' do
       expect(certs.size).to eq(1)
     end
 
+    it 'read a chain of 4 certs OK' do
+      certs = parse_file("data/certs/expired-chain.pem")
+
+      expect(certs.size).to eq(4)
+    end
+
     it 'raise an exception about an incomplete cert' do
       expect{ parse_file("data/certs/incomplete-cert.pem") }.to raise_error(ArgumentError)
     end

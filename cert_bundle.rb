@@ -29,7 +29,3 @@ class CertBundle
       result
     end
 end
-
-if __FILE__ == $0
-    CertBundle.parse_bundle_file(ARGF)
-end
