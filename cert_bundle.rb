@@ -7,7 +7,6 @@ class Certificate
         @x509_text = x509_text
         @pem_text = pem_text
         @pem_file = Tempfile.new("cert-#{index}.pem")
-        puts @pem_file.path
         @pem_file.write(pem_text)
         @pem_file.close
     end
@@ -30,15 +29,36 @@ module OpenSSL
   end
 
   def self.verify_chain(certs)
-    # assume MacOS where the command hast to look like:
+    # assume MacOS (OpenSSL 0.9.8zh 14 Jan 2016)  where the command hast to look like:
     # openssl verify -CAfile root.pem -untrusted <(cat intermediate.pems ) leaf.pem 
     # because it won't take multiple -untrusted flags
     # and, assume we have at least 3 certs
     num_certs = certs.size
     root_pem = certs[-1].pem_path
     leaf_pem = certs[0].pem_path
-    puts `openssl verify #{leaf_pem}`
-    #puts `openssl verify -CAfile <(echo #{root_pem}) <(echo #{leaf.pem })`
+    results = `openssl verify #{leaf_pem}`
+
+    parse_verify_results(results)
+  end
+
+  def self.parse_verify_results(results)
+    status = false
+    error_msg = nil
+
+    lines = results.split("\n")
+    # only looking at last line of output ignores 'warnings' before 'OK'
+    if lines[-1] =~ /OK$/
+      status = true
+    else
+      # first line is the subject, second is the message
+      # cert4.pem: /C=US/O=The Go Daddy Group...
+      subject = lines[0].split(':')[1]
+      # error 20 at 0 depth lookup:unable to get local issuer certificate
+      msg = lines[1].split(':')[1]
+      error_msg = "Error '#{msg}' with certificated for '#{subject}'"
+    end
+
+    [status, error_msg]
 
   end
 
@@ -88,7 +108,14 @@ end
 
 if __FILE__ == $0
   certs = CertBundle.parse_bundle_file(ARGF)
-  puts "Found #{certs.size} certificates"
-  certs.verify
+  puts "Found #{certs.size} certificates in chain"
+  status, message = certs.verify
+
+  if status
+    puts "Certificate chain OK"
+  else
+    puts "Error found in chain:"
+    puts message
+  end
 
 end
