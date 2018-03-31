@@ -1,19 +1,25 @@
 require 'tempfile'
 
-class Certificate
-    attr_reader :pem_text
+class PemObject
+  attr_reader :pem_text
 
-    def initialize(x509_text, pem_text, index = 0)
-        @x509_text = x509_text
-        @pem_text = pem_text
-        @pem_file = Tempfile.new("cert-#{index}.pem")
-        @pem_file.write(pem_text)
-        @pem_file.close
-    end
+  def initialize(pem_text, temp_name)
+    @pem_text = pem_text
+    @pem_file = Tempfile.new("#{temp_name}.pem")
+    @pem_file.write(pem_text)
+    @pem_file.close
+  end
 
-    def pem_path
-        @pem_file.path
-    end
+  def pem_path
+    @pem_file.path
+  end
+end
+
+class Certificate < PemObject
+  def initialize(x509_text, pem_text, index = 0)
+    super(pem_text, "cert-#{index}")
+    @x509_text = x509_text
+  end
 end
 
 module OpenSSL
