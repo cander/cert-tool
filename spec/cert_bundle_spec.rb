@@ -29,7 +29,7 @@ end
 
 describe 'PrivateKey' do
   it 'should read a valid private key' do
-    input = File.open("data/keys/priv-key.pem")
+    input = File.open("data/keys/self-signed-key.pem")
     key = PrivateKey.from_file(input)
 
     expect(key).to_not be_nil

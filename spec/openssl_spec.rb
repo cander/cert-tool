@@ -1,5 +1,3 @@
-
-
 require_relative '../cert_bundle.rb'
 
 describe 'OpenSSL' do
@@ -27,6 +25,22 @@ describe 'OpenSSL' do
       expect(status).to be false
       expect(msg).to match(/unable to get local issuer certificate/)
       expect(msg).to match(%r|/C=US/ST=Arizona/L=Scottsdale/O=GoDaddy.com|)
+    end
+  end
+
+  describe 'verify_key_and_cert' do
+    it 'should report a matching pair as OK' do
+      priv_key = PrivateKey.from_file(File.open("data/keys/self-signed-key.pem", 'r'))
+      cert = CertBundle.parse_bundle_file(File.open("data/certs/self-signed-cert.pem", 'r'))[0]
+
+      expect(OpenSSL.verify_key_and_cert(priv_key, cert)).to be true
+    end
+
+    it 'should report a mismatched pair as not OK' do
+      priv_key = PrivateKey.from_file(File.open("data/keys/random-key.pem", 'r'))
+      cert = CertBundle.parse_bundle_file(File.open("data/certs/self-signed-cert.pem", 'r'))[0]
+
+      expect(OpenSSL.verify_key_and_cert(priv_key, cert)).to be false
     end
   end
 end
