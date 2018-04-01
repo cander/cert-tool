@@ -89,10 +89,14 @@ module OpenSSL
     end
 
     [status, error_msg]
-
   end
 
+  def self.verify_key_and_cert(priv_key, cert)
+    key_sum = `openssl pkey -in #{priv_key.pem_path} -pubout -outform pem | sha256sum`
+    cert_sum = `openssl x509 -in #{cert.pem_path} -pubkey -noout -outform pem | sha256sum`
 
+    key_sum == cert_sum
+  end
 end
 
 class CertBundle
@@ -102,6 +106,10 @@ class CertBundle
 
     def size
       @certficates.size
+    end
+
+    def [](idx)
+      @certficates[idx]
     end
 
     def pem_text(idx)
@@ -136,7 +144,7 @@ class CertBundle
 end
 
 
-if __FILE__ == $0
+def read_bundle
   certs = CertBundle.parse_bundle_file(ARGF)
   puts "Found #{certs.size} certificates in chain"
   status, message = certs.verify
@@ -147,5 +155,18 @@ if __FILE__ == $0
     puts "Error found in chain:"
     puts message
   end
+end
 
+
+if __FILE__ == $0
+  priv_name = ARGV.shift
+  cert_name = ARGV.shift
+
+  priv_key = PrivateKey.from_file(File.open(priv_name, 'r'))
+  cert = CertBundle.parse_bundle_file(File.open(cert_name, 'r'))[0]
+  if OpenSSL.verify_key_and_cert(priv_key, cert)
+    puts "The key matches the certficate"
+  else
+    puts "The key and certificate do not match"
+  end
 end
