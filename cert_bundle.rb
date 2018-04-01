@@ -22,6 +22,20 @@ class Certificate < PemObject
   end
 end
 
+class PrivateKey < PemObject
+  def initialize(pem_text)
+    super(pem_text, "prviate-key")
+  end
+
+  def self.from_file(input)
+    pem_text = input.readlines.join('')
+    if OpenSSL.check_key(pem_text)
+      PrivateKey.new(pem_text)
+    end
+  end
+end
+
+
 module OpenSSL
   # parse PEM text into the x509 dump from OpenSSL
   def self.parse_cert(pem_text)
@@ -32,6 +46,16 @@ module OpenSSL
     end
 
     result
+  end
+
+  def self.check_key(pem_text)
+    # discard all output - just look for the status
+    `echo '#{pem_text}' | openssl pkey -noout -text > /dev/null 2>&1`
+    unless $?.success?
+      raise ArgumentError.new("Unable to parse private key")
+    end
+
+    true
   end
 
   def self.verify_chain(certs)

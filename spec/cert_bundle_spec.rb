@@ -26,3 +26,18 @@ describe 'CertBundle' do
       expect{ parse_file("data/certs/corrupted-cert.pem") }.to raise_error(ArgumentError)
     end
 end
+
+describe 'PrivateKey' do
+  it 'should read a valid private key' do
+    input = File.open("data/keys/priv-key.pem")
+    key = PrivateKey.from_file(input)
+
+    expect(key).to_not be_nil
+  end
+
+  it 'should raise an error for an invalid private key' do
+    input = File.open("data/certs/corrupted-cert.pem")
+
+    expect { PrivateKey.from_file(input) }.to raise_error(ArgumentError)
+  end
+end
