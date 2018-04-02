@@ -59,14 +59,21 @@ module OpenSSL
   end
 
   def self.verify_chain(certs)
-    # assume MacOS (OpenSSL 0.9.8zh 14 Jan 2016)  where the command hast to look like:
-    # openssl verify -CAfile root.pem -untrusted <(cat intermediate.pems ) leaf.pem 
-    # because it won't take multiple -untrusted flags
-    # and, assume we have at least 3 certs
-    num_certs = certs.size
-    root_pem = certs[-1].pem_path
-    leaf_pem = certs[0].pem_path
-    results = `openssl verify #{leaf_pem}`
+    # NB: this doesn't work on  MacOS (OpenSSL 0.9.8zh 14 Jan 2016), but it
+    # does work on Ubunutu with OpenSSL 1.0.1f 6 Jan 2014
+    # the certs are assumed to go from leaf to root
+    #  -purpose sslserver -untrusted
+    leaf_path = certs[0].pem_path
+
+    if certs.size > 1
+      # intermediate certs have to be order with root first (not last)
+      intermediate_paths = certs[1..-1].reverse.map(&:pem_path)
+      args = "-untrusted #{intermediate_paths.join(' -untrusted ')} #{leaf_path}"
+    else
+      args = leaf_path
+    end
+
+    results = `openssl verify -purpose sslserver #{args}`
 
     parse_verify_results(results)
   end
@@ -157,8 +164,7 @@ def read_bundle
   end
 end
 
-
-if __FILE__ == $0
+def check_key
   priv_name = ARGV.shift
   cert_name = ARGV.shift
 
@@ -169,4 +175,8 @@ if __FILE__ == $0
   else
     puts "The key and certificate do not match"
   end
+end
+
+if __FILE__ == $0
+  read_bundle
 end
