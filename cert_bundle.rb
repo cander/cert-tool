@@ -49,6 +49,13 @@ class PrivateKey < PemObject
 end
 
 
+# This module is a wrapper around the command line OpenSSL program, as
+# opposed to using Ruby binings to the OpenSSL library.  This was done for
+# two reasons: it's comparatively easy to implement, and by running
+# everything in an external process, we get a layer of protection (i.e., a
+# separate address space) from crazy stuff coming in from the internet.  The
+# downsides include overhead (separate process, resources, etc.) and
+# potential brittleness that comes from parsing text output from the command.
 module OpenSSL
   # parse PEM text into the x509 dump from OpenSSL
   def self.parse_cert(pem_text)
@@ -138,10 +145,11 @@ class CertBundle
     end
 
     def verify
-      puts "Verify chain of #{@certficates.size} certs..."
       OpenSSL.verify_chain(@certficates)
     end
 
+    # raises ArgumentError for serious errors like PEM formatting, wrong
+    # object type, etc.
     def self.parse_bundle_file(in_file)
       certs = []
       cert_num = 1
