@@ -19,6 +19,19 @@ class Certificate < PemObject
   def initialize(x509_text, pem_text, index = 0)
     super(pem_text, "cert-#{index}")
     @x509_text = x509_text
+    extract_parties
+  end
+
+  def extract_parties
+    @x509_text.split("\n").each do |line|
+      if line =~ /Subject: (?<subject>.*$)/
+        @subject = $~[:subject]
+      elsif line =~ /Issuer: (?<issuer>.*$)/
+        @issuer = $~[:issuer]
+      end
+    end
+
+    @self_signed =  @subject == @issuer
   end
 end
 
@@ -83,8 +96,9 @@ module OpenSSL
     error_msg = nil
 
     lines = results.split("\n")
-    # only looking at last line of output ignores 'warnings' before 'OK'
-    if lines[-1] =~ /OK$/
+    # only looking at first line of output for 'OK'.  It is possible to get
+    # 'OK' after error messages - we consider that an error, not OK.
+    if lines.first =~ /OK$/
       status = true
     else
       # first line is the subject, second is the message

@@ -9,13 +9,13 @@ describe 'OpenSSL' do
       expect(msg).to be_nil
     end
 
-    it 'should recognize a OK status with warnings' do
+    it 'should report an OK status with an error message as an error' do
       status, msg = OpenSSL.parse_verify_results("cert4.pem: /C=US/O=The Go Daddy Group, Inc./OU=Go Daddy Class 2 Certification Authority
       error 18 at 0 depth lookup:self signed certificate
       OK")
 
-      expect(status).to be true
-      expect(msg).to be_nil
+      expect(status).to be false
+      expect(msg).to_not be_nil
     end
 
     it 'should report an error with a message' do

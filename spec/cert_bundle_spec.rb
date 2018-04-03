@@ -2,15 +2,23 @@
 require_relative '../cert_bundle.rb'
 
 describe 'CertBundle' do
-    def parse_file(name)
-      CertBundle.parse_bundle_file(File.open(name, "r"))
-    end
+  def parse_file(name)
+    CertBundle.parse_bundle_file(File.open(name, "r"))
+  end
 
-    it 'read a valid cert OK' do
-      certs = parse_file("data/certs/one-good-cert.pem")
+  describe 'parse_bundle_file' do
+    it 'read a single valid cert OK' do
+      certs = parse_file("data/certs/leaf-cert.pem")
 
       expect(certs.size).to eq(1)
     end
+
+    it 'read two valid certs OK' do
+      certs = parse_file("data/certs/two-certs.pem")
+
+      expect(certs.size).to eq(2)
+    end
+
 
     it 'read a chain of 4 certs OK' do
       certs = parse_file("data/certs/expired-chain.pem")
@@ -25,6 +33,34 @@ describe 'CertBundle' do
     it 'raise an exception for a corrupted cert' do
       expect{ parse_file("data/certs/corrupted-cert.pem") }.to raise_error(ArgumentError)
     end
+  end
+
+  describe 'verify' do
+    it 'should verify a root certificate' do
+      certs = parse_file("data/certs/root-cert.pem")
+      status, error_msg = certs.verify
+
+      expect(status).to be true
+      expect(error_msg).to be_nil
+    end
+
+    it 'should reject a leaf w/o its chain' do
+      certs = parse_file("data/certs/leaf-cert.pem")
+      status, error_msg = certs.verify
+
+      expect(status).to be false
+      expect(error_msg).to match(/unable to get local issuer certificate/)
+    end
+
+    it 'should reject an expired cert in the chain' do
+      certs = parse_file("data/certs/expired-chain.pem")
+      status, error_msg = certs.verify
+
+      expect(status).to be false
+      expect(error_msg).to match(/certificate has expired/)
+    end
+
+  end
 end
 
 describe 'PrivateKey' do
