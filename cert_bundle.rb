@@ -1,5 +1,21 @@
 require 'tempfile'
 
+# this is the primary entry point that packages up all the code and classes below.
+module CertTool
+  # returns a boolean status (true is OK) and a list of status/error messages.
+  def self.verify_bundle_and_key(cert_bundle, priv_key)
+    messages = []
+    bundle_status, message = cert_bundle.verify
+    messages << message unless bundle_status
+
+    key_status = OpenSSL.verify_key_and_cert(priv_key, cert_bundle.leaf)
+    messages << "The key and certificate do not match" unless key_status
+
+    [bundle_status && key_status, messages]
+  end
+end
+
+
 class PemObject
   attr_reader :pem_text
 
@@ -48,6 +64,50 @@ class PrivateKey < PemObject
   end
 end
 
+class CertBundle
+    def initialize(certs)
+      @certficates = certs
+    end
+
+    def size
+      @certficates.size
+    end
+
+    def [](idx)
+      @certficates[idx]
+    end
+
+    def leaf
+      @certficates.first
+    end
+
+    def verify
+      OpenSSL.verify_chain(@certficates)
+    end
+
+    # raises ArgumentError for serious errors like PEM formatting, wrong
+    # object type, etc.
+    def self.parse_bundle_file(in_file)
+      certs = []
+      cert_num = 1
+      pem_text = ""
+      in_file.each do |line|
+        pem_text += line
+        if (line =~ /^\-+END(\s\w+)?\sCERTIFICATE\-+$/)
+            parsed_cert = OpenSSL.parse_cert(pem_text)
+            certs << Certificate.new(parsed_cert, pem_text, cert_num)
+            pem_text = ""
+            cert_num += 1
+        end
+      end
+
+      if !pem_text.empty?
+        raise ArgumentError.new("Failed to find end of certificate")
+      end
+
+      CertBundle.new(certs)
+    end
+end
 
 # This module is a wrapper around the command line OpenSSL program, as
 # opposed to using Ruby binings to the OpenSSL library.  This was done for
@@ -127,79 +187,35 @@ module OpenSSL
   end
 end
 
-class CertBundle
-    def initialize(certs)
-      @certficates = certs
-    end
-
-    def size
-      @certficates.size
-    end
-
-    def [](idx)
-      @certficates[idx]
-    end
-
-    def verify
-      OpenSSL.verify_chain(@certficates)
-    end
-
-    # raises ArgumentError for serious errors like PEM formatting, wrong
-    # object type, etc.
-    def self.parse_bundle_file(in_file)
-      certs = []
-      cert_num = 1
-      pem_text = ""
-      in_file.each do |line|
-        pem_text += line
-        if (line =~ /^\-+END(\s\w+)?\sCERTIFICATE\-+$/)
-            parsed_cert = OpenSSL.parse_cert(pem_text)
-            certs << Certificate.new(parsed_cert, pem_text, cert_num)
-            pem_text = ""
-            cert_num += 1
-        end
-      end
-
-      if !pem_text.empty?
-        raise ArgumentError.new("Failed to find end of certificate")
-      end
-
-      CertBundle.new(certs)
-    end
-end
 
 
-def read_bundle
-  certs = CertBundle.parse_bundle_file(ARGF)
-  puts "Found #{certs.size} certificates in chain"
-  status, message = certs.verify
-
-  if status
-    puts "Certificate chain OK"
-  else
-    puts "Error found in chain:"
-    puts message
-  end
-end
-
-def check_key
-  priv_name = ARGV.shift
-  cert_name = ARGV.shift
-
-  priv_key = PrivateKey.from_file(File.open(priv_name, 'r'))
-  cert = CertBundle.parse_bundle_file(File.open(cert_name, 'r'))[0]
-  if OpenSSL.verify_key_and_cert(priv_key, cert)
-    puts "The key matches the certficate"
-  else
-    puts "The key and certificate do not match"
-  end
-end
-
+# command line usage
 if __FILE__ == $0
   if ARGV.size == 1
-    read_bundle
+    certs = CertBundle.parse_bundle_file(ARGF)
+    puts "Found #{certs.size} certificates in chain"
+    status, message = certs.verify
+
+    if status
+      puts "Certificate chain OK"
+    else
+      puts "Error found in chain:"
+      puts message
+    end
   elsif ARGV.size == 2
-    check_key
+    priv_name = ARGV.shift
+    cert_name = ARGV.shift
+
+    priv_key = PrivateKey.from_file(File.open(priv_name, 'r'))
+    cert_bundle = CertBundle.parse_bundle_file(File.open(cert_name, 'r'))
+
+    status, messages = CertTool.verify_bundle_and_key(cert_bundle, priv_key)
+    if status
+      puts "The certificate bundle is valid, and the key matches it."
+    else
+      puts "Errors were found:"
+      puts messages.join("\n")
+    end
   else
     puts "Usage: cert_bundle.rb cert-bundle.pem  - verify a certficiate bundle"
     puts "       cert_bundle.rb priv-key.pem cert-bundle.pem  - check a key against a certificate/bundle"
