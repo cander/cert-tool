@@ -14,7 +14,7 @@ describe 'CertBundle' do
     end
 
     it 'read two valid certs OK' do
-      certs = parse_file("data/certs/two-certs.pem")
+      certs = parse_file("data/certs/two-gd-certs.pem")
 
       expect(certs.size).to eq(2)
     end
@@ -58,6 +58,14 @@ describe 'CertBundle' do
 
       expect(status).to be false
       expect(error_msg).to match(/certificate has expired/)
+    end
+
+    it 'should reject a cert with the wrong purpose' do
+      certs = parse_file("data/certs/two-gd-certs.pem")
+      status, error_msg = certs.verify
+
+      expect(status).to be false
+      expect(error_msg).to match(/unsupported certificate purpose/)
     end
 
   end
