@@ -140,10 +140,6 @@ class CertBundle
       @certficates[idx]
     end
 
-    def pem_text(idx)
-      @certficates[idx].pem_text
-    end
-
     def verify
       OpenSSL.verify_chain(@certficates)
     end
@@ -200,5 +196,12 @@ def check_key
 end
 
 if __FILE__ == $0
-  read_bundle
+  if ARGV.size == 1
+    read_bundle
+  elsif ARGV.size == 2
+    check_key
+  else
+    puts "Usage: cert_bundle.rb cert-bundle.pem  - verify a certficiate bundle"
+    puts "       cert_bundle.rb priv-key.pem cert-bundle.pem  - check a key against a certificate/bundle"
+  end
 end
